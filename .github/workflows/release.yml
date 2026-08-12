@@ -1,0 +1,24 @@
+---
+name: Create Release from Tag
+"on":
+  push:
+    tags:
+      - v*
+jobs:
+  build:
+    name: Create Release
+    permissions:
+      contents: write
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Create draft release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME"
+          --draft
+          --generate-notes
+          --title "Release $GITHUB_REF_NAME"
+          --verify-tag

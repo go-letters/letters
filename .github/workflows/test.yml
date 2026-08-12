@@ -1,0 +1,33 @@
+---
+name: Test
+"on":
+  pull_request: null
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version:
+          - "1.25"
+          - "1.26"
+    timeout-minutes: 15
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v7.0.0
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Test
+        run: make test
+      - name: Lint
+        run: make lint
