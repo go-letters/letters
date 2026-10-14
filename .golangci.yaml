@@ -23,7 +23,7 @@ linters:
     - errname
     - errorlint
     - exhaustive
-    - exhaustruct
+    - exhaustruct_v5
     - exptostd
     - fatcontext
     - forbidigo
@@ -42,7 +42,7 @@ linters:
     - godox
     - goheader
     - gomoddirectives
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - gosmopolitan
@@ -121,7 +121,7 @@ linters:
       - path: _test\.go
         linters:
           - dupl
-          - exhaustruct
+          - exhaustruct_v5
           - goconst
           - gosmopolitan
           - lll

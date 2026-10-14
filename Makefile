@@ -2,7 +2,7 @@ TOOL_ENV := GOWORK=$(CURDIR)/tools/go.work
 GOLANGCI_LINT := $(TOOL_ENV) go tool golangci-lint
 
 devcontainer:
-	docker run --rm -it -v .:/src -v ./.gopath:/go -w /src golang:1.26.5-trixie bash
+	docker run --rm -it -v .:/src -v ./.gopath:/go -w /src golang:1.27.1-trixie bash
 
 format:
 	$(GOLANGCI_LINT) fmt

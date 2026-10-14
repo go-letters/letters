@@ -500,4 +500,4 @@ public API, including struct fields, may still change.
 Letters follows [Go’s Release Policy](https://go.dev/doc/devel/release#policy).
 Each Letters release supports at least the two most recent major Go releases.
 
-Letters v0.4.0 supports Go 1.25 and Go 1.26.
+Letters v0.5.0 supports Go 1.26 and Go 1.27.
