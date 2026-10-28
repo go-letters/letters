@@ -86,12 +86,29 @@ func decodeContentBytes(
 
 	switch cte {
 	case cteBase64:
+		// Size the output for base64 data, excluding MIME line wrapping.
+		encodedLen := len(contentBytes)
+		encodedLen -= bytes.Count(contentBytes, []byte{'\r'})
+		encodedLen -= bytes.Count(contentBytes, []byte{'\n'})
+
+		base64Encoding := base64.StdEncoding
+		if encodedLen%4 != 0 {
+			base64Encoding = base64.RawStdEncoding
+		}
+
+		decodedBytes := make([]byte, base64Encoding.DecodedLen(encodedLen))
+
+		decodedLen, err := base64Encoding.Decode(decodedBytes, contentBytes)
+		if err == nil {
+			return decodedBytes[:decodedLen], nil
+		}
+
 		decoded := base64.NewDecoder(
 			base64.StdEncoding,
 			bytes.NewReader(contentBytes),
 		)
 
-		decodedBytes, err := io.ReadAll(decoded)
+		decodedBytes, err = io.ReadAll(decoded)
 		if errors.Is(err, io.ErrUnexpectedEOF) {
 			decoded = base64.NewDecoder(
 				base64.RawStdEncoding,
