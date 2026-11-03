@@ -1,6 +1,7 @@
 package letters_test
 
 import (
+	"bytes"
 	"fmt"
 	"net/mail"
 	"os"
@@ -17,6 +18,13 @@ type emailTestCase struct {
 	filepath      string
 	emailParser   *letters.EmailParser
 	expectedEmail letters.Email
+}
+
+type emailAllocationTestCase struct {
+	name                string
+	filepath            string
+	emailParser         *letters.EmailParser
+	expectedAllocations float64
 }
 
 func testEmailCases(t *testing.T, tcs []emailTestCase) {
@@ -54,6 +62,64 @@ func testEmailCases(t *testing.T, tcs []emailTestCase) {
 				t.Errorf("emails are not equal")
 				t.Errorf("Got  %#v", parsedEmail)
 				t.Errorf("Want %#v", testCase.expectedEmail)
+			}
+		})
+	}
+}
+
+//nolint:paralleltest // AllocsPerRun cannot run during parallel tests.
+func TestParseEmailFileAllocations(t *testing.T) {
+	const allocationRuns = 100
+
+	tcs := []emailAllocationTestCase{
+		{
+			name:     "TopLevelAttachment",
+			filepath: "tests/test_english_top_level_attachment.txt",
+			emailParser: letters.NewEmailParser(
+				letters.WithBodyFilter(letters.NoBodies),
+			),
+			expectedAllocations: 358,
+		},
+		{
+			name:     "MultipartAttachments",
+			filepath: "tests/test_english_multipart_mixed_ascii_over_7bit.txt",
+			emailParser: letters.NewEmailParser(
+				letters.WithBodyFilter(letters.NoBodies),
+			),
+			expectedAllocations: 1201,
+		},
+		{
+			name:     "InlineFile",
+			filepath: "tests/test_english_multipart_related_ascii_over_7bit.txt",
+			emailParser: letters.NewEmailParser(
+				letters.WithBodyFilter(letters.NoBodies),
+			),
+			expectedAllocations: 969,
+		},
+	}
+
+	for _, tc := range tcs {
+		testCase := tc
+
+		t.Run(testCase.name, func(t *testing.T) {
+			rawEmail, err := os.ReadFile(testCase.filepath)
+			if err != nil {
+				t.Errorf("error while reading email from file: %s", err)
+
+				return
+			}
+
+			allocations := testing.AllocsPerRun(allocationRuns, func() {
+				_, err := testCase.emailParser.Parse(bytes.NewReader(rawEmail))
+				if err != nil {
+					t.Fatalf("error while parsing email: %s", err)
+				}
+			})
+
+			if allocations > testCase.expectedAllocations {
+				t.Errorf("allocations exceed the expected maximum")
+				t.Errorf("Got  %.0f", allocations)
+				t.Errorf("Want %.0f", testCase.expectedAllocations)
 			}
 		})
 	}
