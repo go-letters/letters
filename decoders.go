@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	"golang.org/x/net/html/charset"
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/transform"
 )
 
 func charsetReader(label string, input io.Reader) (io.Reader, error) {
@@ -31,7 +29,19 @@ func charsetReader(label string, input io.Reader) (io.Reader, error) {
 		return nil, fmt.Errorf("%w %s", ErrUnknownCharset, label)
 	}
 
-	return enc.NewDecoder().Reader(input), nil
+	content, err := io.ReadAll(input)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read encoded header: %w", err)
+	}
+
+	decoded, err := enc.NewDecoder().Bytes(content)
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode header charset: %w", err)
+	}
+
+	// Decode MIME words eagerly so io.Copy can use bytes.Reader.WriteTo
+	// without allocating streaming conversion and copy buffers.
+	return bytes.NewReader(decoded), nil
 }
 
 func decodeHeader(headerValue string) (string, error) {
@@ -48,27 +58,6 @@ func decodeHeader(headerValue string) (string, error) {
 	}
 
 	return decodedHeader, nil
-}
-
-func decodeContent(
-	content io.Reader,
-	textEncoding encoding.Encoding,
-	cte ContentTransferEncoding,
-) (io.Reader, error) {
-	contentBytes, err := decodeContentBytes(content, cte)
-	if err != nil {
-		return nil, err
-	}
-
-	var contentReader io.Reader = bytes.NewReader(contentBytes)
-	if textEncoding != nil {
-		contentReader = transform.NewReader(
-			contentReader,
-			textEncoding.NewDecoder(),
-		)
-	}
-
-	return contentReader, nil
 }
 
 func decodeContentBytes(
