@@ -29,7 +29,19 @@ func charsetReader(label string, input io.Reader) (io.Reader, error) {
 		return nil, fmt.Errorf("%w %s", ErrUnknownCharset, label)
 	}
 
-	return enc.NewDecoder().Reader(input), nil
+	content, err := io.ReadAll(input)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read encoded header: %w", err)
+	}
+
+	decoded, err := enc.NewDecoder().Bytes(content)
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode header charset: %w", err)
+	}
+
+	// Decode MIME words eagerly so io.Copy can use bytes.Reader.WriteTo
+	// without allocating streaming conversion and copy buffers.
+	return bytes.NewReader(decoded), nil
 }
 
 func decodeHeader(headerValue string) (string, error) {
