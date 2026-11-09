@@ -54,28 +54,44 @@ func getTimeLocationFromObsoleteDateFormat(dateHeader string) *time.Location {
 		pstOffset = -8 * 60 * 60
 	)
 
-	equivalentTZs := map[string]*time.Location{
-		"EDT": time.FixedZone("EDT", edtOffset),
-		"EST": time.FixedZone("EST", estOffset),
-		"CDT": time.FixedZone("CDT", cdtOffset),
-		"CST": time.FixedZone("CST", cstOffset),
-		"MDT": time.FixedZone("MDT", mdtOffset),
-		"MST": time.FixedZone("MST", mstOffset),
-		"PDT": time.FixedZone("PDT", pdtOffset),
-		"PST": time.FixedZone("PST", pstOffset),
+	if len(dateHeader) < len("MST") {
+		return nil
 	}
 
-	for name, location := range equivalentTZs {
-		if strings.HasSuffix(dateHeader, name) {
-			return location
-		}
+	name := dateHeader[len(dateHeader)-len("MST"):]
+
+	var offset int
+
+	switch name {
+	case "EDT":
+		offset = edtOffset
+	case "EST":
+		offset = estOffset
+	case "CDT":
+		offset = cdtOffset
+	case "CST":
+		offset = cstOffset
+	case "MDT":
+		offset = mdtOffset
+	case "MST":
+		offset = mstOffset
+	case "PDT":
+		offset = pdtOffset
+	case "PST":
+		offset = pstOffset
+	default:
+		return nil
 	}
 
-	return nil
+	return time.FixedZone(name, offset)
 }
 
 // ParseDateHeader parses an RFC-compatible email date or returns the zero time.
 func ParseDateHeader(dateHeader string) time.Time {
+	if strings.TrimSpace(dateHeader) == "" {
+		return time.Time{}
+	}
+
 	// We follow date formats specified in RFC5322, RFC2822, and RFC822,
 	// including obsolete but legal formats, but parse them according to
 	// time.Parse Go implementation. The main difference is in parsing
@@ -100,8 +116,17 @@ func ParseDateHeader(dateHeader string) time.Time {
 
 	obsLocation := getTimeLocationFromObsoleteDateFormat(dateHeader)
 
+	// Formats sorted by frequency
 	formats := []string{
-		"02 Jan 2006 1504 -0700",
+		"Mon, 2 Jan 2006 15:04:05 -0700",       // 79.32%
+		"Mon, 2 Jan 2006 15:04:05 -0700 (MST)", // 11.79%
+		"2 Jan 2006 15:04:05 -0700",            // 5.45%
+		"Mon, 2 Jan 2006 15:04:05 MST",         // 0.67%
+		"2 Jan 06 15:04:05 -0700",              // 0.05%
+		"Mon, 2 Jan 06 15:04:05 MST",           // 0.04%
+		"Mon, 2 Jan 2006 15:04 -0700",          // 0.02%
+		"Mon, 2 Jan 2006 15:04:05 (MST)",       // 0.02%
+		"02 Jan 2006 1504 -0700",               // 0.00%
 		"02 Jan 2006 1504 MST",
 		"02 Jan 2006 1504 (MST)",
 		"02 Jan 2006 1504 -0700 (MST)",
@@ -133,7 +158,6 @@ func ParseDateHeader(dateHeader string) time.Time {
 		"2 Jan 2006 15:04 MST",
 		"2 Jan 2006 15:04 (MST)",
 		"2 Jan 2006 15:04 -0700 (MST)",
-		"2 Jan 2006 15:04:05 -0700",
 		"2 Jan 2006 15:04:05 MST",
 		"2 Jan 2006 15:04:05 (MST)",
 		"2 Jan 2006 15:04:05 -0700 (MST)",
@@ -145,7 +169,6 @@ func ParseDateHeader(dateHeader string) time.Time {
 		"2 Jan 06 15:04 MST",
 		"2 Jan 06 15:04 (MST)",
 		"2 Jan 06 15:04 -0700 (MST)",
-		"2 Jan 06 15:04:05 -0700",
 		"2 Jan 06 15:04:05 MST",
 		"2 Jan 06 15:04:05 (MST)",
 		"2 Jan 06 15:04:05 -0700 (MST)",
@@ -177,14 +200,9 @@ func ParseDateHeader(dateHeader string) time.Time {
 		"Mon, 2 Jan 2006 1504 MST",
 		"Mon, 2 Jan 2006 1504 (MST)",
 		"Mon, 2 Jan 2006 1504 -0700 (MST)",
-		"Mon, 2 Jan 2006 15:04 -0700",
 		"Mon, 2 Jan 2006 15:04 MST",
 		"Mon, 2 Jan 2006 15:04 (MST)",
 		"Mon, 2 Jan 2006 15:04 -0700 (MST)",
-		"Mon, 2 Jan 2006 15:04:05 -0700",
-		"Mon, 2 Jan 2006 15:04:05 MST",
-		"Mon, 2 Jan 2006 15:04:05 (MST)",
-		"Mon, 2 Jan 2006 15:04:05 -0700 (MST)",
 		"Mon, 2 Jan 06 1504 -0700",
 		"Mon, 2 Jan 06 1504 MST",
 		"Mon, 2 Jan 06 1504 (MST)",
@@ -194,7 +212,6 @@ func ParseDateHeader(dateHeader string) time.Time {
 		"Mon, 2 Jan 06 15:04 (MST)",
 		"Mon, 2 Jan 06 15:04 -0700 (MST)",
 		"Mon, 2 Jan 06 15:04:05 -0700",
-		"Mon, 2 Jan 06 15:04:05 MST",
 		"Mon, 2 Jan 06 15:04:05 (MST)",
 		"Mon, 2 Jan 06 15:04:05 -0700 (MST)",
 	}
@@ -214,9 +231,18 @@ func ParseDateHeader(dateHeader string) time.Time {
 	}
 
 	// Best-effort support for RFC5322 Appendix A.5. with obs-zone
-	sWithoutObsZone := strings.Split(dateHeader, " (")[0]
+	sWithoutObsZone, _, hasComment := strings.Cut(dateHeader, " (")
+	if !hasComment {
+		return parsedDate
+	}
 
 	formatsWithObsZone := []string{
+		"Mon, 2 Jan 2006 15:04:05 -0700", // 0.32%
+		"2 Jan 2006 15:04:05 -0700",      // 0.00%
+		"Mon, 2 Jan 2006 15:04:05 MST",
+		"2 Jan 06 15:04:05 -0700",
+		"Mon, 2 Jan 06 15:04:05 MST",
+		"Mon, 2 Jan 2006 15:04 -0700",
 		"02 Jan 2006 1504 -0700",
 		"02 Jan 2006 1504 MST",
 		"02 Jan 2006 15:04 -0700",
@@ -233,13 +259,11 @@ func ParseDateHeader(dateHeader string) time.Time {
 		"2 Jan 2006 1504 MST",
 		"2 Jan 2006 15:04 -0700",
 		"2 Jan 2006 15:04 MST",
-		"2 Jan 2006 15:04:05 -0700",
 		"2 Jan 2006 15:04:05 MST",
 		"2 Jan 06 1504 -0700",
 		"2 Jan 06 1504 MST",
 		"2 Jan 06 15:04 -0700",
 		"2 Jan 06 15:04 MST",
-		"2 Jan 06 15:04:05 -0700",
 		"2 Jan 06 15:04:05 MST",
 		"Mon, 02 Jan 2006 1504 -0700",
 		"Mon, 02 Jan 2006 1504 MST",
@@ -255,16 +279,12 @@ func ParseDateHeader(dateHeader string) time.Time {
 		"Mon, 02 Jan 06 15:04:05 MST",
 		"Mon, 2 Jan 2006 1504 -0700",
 		"Mon, 2 Jan 2006 1504 MST",
-		"Mon, 2 Jan 2006 15:04 -0700",
 		"Mon, 2 Jan 2006 15:04 MST",
-		"Mon, 2 Jan 2006 15:04:05 -0700",
-		"Mon, 2 Jan 2006 15:04:05 MST",
 		"Mon, 2 Jan 06 1504 -0700",
 		"Mon, 2 Jan 06 1504 MST",
 		"Mon, 2 Jan 06 15:04 -0700",
 		"Mon, 2 Jan 06 15:04 MST",
 		"Mon, 2 Jan 06 15:04:05 -0700",
-		"Mon, 2 Jan 06 15:04:05 MST",
 	}
 
 	for _, formatWithObsZone := range formatsWithObsZone {
