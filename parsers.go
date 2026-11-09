@@ -785,7 +785,7 @@ func parseText(
 		return "", fmt.Errorf("%w %s", ErrUnknownCharset, charsetLabel)
 	}
 
-	reader, err := decodeContent(content, textEncoding, cte)
+	textBody, err := decodeContentBytes(content, cte)
 	if err != nil {
 		return "", fmt.Errorf(
 			"letters.parsers.parseText: "+
@@ -794,13 +794,15 @@ func parseText(
 		)
 	}
 
-	textBody, err := io.ReadAll(reader)
-	if err != nil {
-		return "", fmt.Errorf(
-			"letters.parsers.parseText: "+
-				"cannot read plain text content: %w",
-			err,
-		)
+	if textEncoding != nil {
+		textBody, err = textEncoding.NewDecoder().Bytes(textBody)
+		if err != nil {
+			return "", fmt.Errorf(
+				"letters.parsers.parseText: "+
+					"cannot read plain text content: %w",
+				err,
+			)
+		}
 	}
 
 	return strings.TrimSuffix(string(textBody), "\n"), nil

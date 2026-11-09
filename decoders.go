@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	"golang.org/x/net/html/charset"
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/transform"
 )
 
 func charsetReader(label string, input io.Reader) (io.Reader, error) {
@@ -48,27 +46,6 @@ func decodeHeader(headerValue string) (string, error) {
 	}
 
 	return decodedHeader, nil
-}
-
-func decodeContent(
-	content io.Reader,
-	textEncoding encoding.Encoding,
-	cte ContentTransferEncoding,
-) (io.Reader, error) {
-	contentBytes, err := decodeContentBytes(content, cte)
-	if err != nil {
-		return nil, err
-	}
-
-	var contentReader io.Reader = bytes.NewReader(contentBytes)
-	if textEncoding != nil {
-		contentReader = transform.NewReader(
-			contentReader,
-			textEncoding.NewDecoder(),
-		)
-	}
-
-	return contentReader, nil
 }
 
 func decodeContentBytes(
