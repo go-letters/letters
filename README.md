@@ -30,7 +30,7 @@ enriched-text, and HTML bodies; and inline and attached files.
 Install Letters with this command:
 
 ```sh
-go get github.com/go-letters/letters@v0.4.1
+go get github.com/go-letters/letters@v0.4.2
 ```
 
 ### Quick Start
@@ -500,4 +500,4 @@ public API, including struct fields, may still change.
 Letters follows [Go’s Release Policy](https://go.dev/doc/devel/release#policy).
 Each Letters release supports at least the two most recent major Go releases.
 
-Letters v0.4.1 supports Go 1.26 and Go 1.27.
+Letters v0.4.2 supports Go 1.26 and Go 1.27.
